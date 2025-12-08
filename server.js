@@ -1,42 +1,55 @@
 const express = require("express");
 const app = express();
-const path = require("path");
-const MongoClient = require("mongodb").MongoClient;
+const { MongoClient } = require("mongodb");
 
 const PORT = 5050;
 app.use(express.urlencoded({ extended: true }));
+app.use(express.json()); // for JSON body
 app.use(express.static("public"));
 
-const MONGO_URL = "mongodb://admin:qwerty@localhost:27017";
-const client = new MongoClient(MONGO_URL);
+// MongoDB running in Docker, connect from host
+const MONGO_URL = "mongodb://admin:qwerty@localhost:27017/?authSource=admin";
+const DB_NAME = "docker-db";
+const COLLECTION_NAME = "users";
 
-//GET all users
+let client;
+
+// Connect once and reuse
+async function connectToMongo() {
+  if (!client || !client.isConnected?.()) {
+    client = new MongoClient(MONGO_URL, { useUnifiedTopology: true });
+    await client.connect();
+    console.log("Connected successfully to MongoDB");
+  }
+  return client.db(DB_NAME);
+}
+
+// GET all users
 app.get("/getUsers", async (req, res) => {
-    await client.connect(URL);
-    console.log('Connected successfully to server');
-
-    const db = client.db("apnacollege-db");
-    const data = await db.collection('users').find({}).toArray();
-    
-    client.close();
-    res.send(data);
+  try {
+    const db = await connectToMongo();
+    const users = await db.collection(COLLECTION_NAME).find({}).toArray();
+    res.json(users);
+  } catch (err) {
+    console.error("Error fetching users:", err);
+    res.status(500).json({ error: "Database error" });
+  }
 });
 
-//POST new user
+// POST new user
 app.post("/addUser", async (req, res) => {
+  try {
     const userObj = req.body;
-    console.log(req.body);
-    await client.connect(URL);
-    console.log('Connected successfully to server');
-
-    const db = client.db("apnacollege-db");
-    const data = await db.collection('users').insertOne(userObj);
-    console.log(data);
-    console.log("data inserted in DB");
-    client.close();
+    const db = await connectToMongo();
+    const result = await db.collection(COLLECTION_NAME).insertOne(userObj);
+    console.log("Inserted:", result.insertedId);
+    res.json({ success: true, insertedId: result.insertedId });
+  } catch (err) {
+    console.error("Error inserting user:", err);
+    res.status(500).json({ error: "Database error" });
+  }
 });
-
 
 app.listen(PORT, () => {
-    console.log(`server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
