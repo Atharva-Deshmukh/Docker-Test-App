@@ -1,0 +1,31 @@
+version: "3.8" # this is deprecated now, its optional
+
+services:
+  mongoDB:
+    image: mongo
+    container_name: mongo-container
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: qwerty
+    networks:
+      - mongoDB-net
+
+  mongo-express:
+    image: mongo-express
+    container_name: mongo-express-container
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: admin
+      ME_CONFIG_MONGODB_ADMINPASSWORD: qwerty
+      ME_CONFIG_MONGODB_SERVER: mongoDB   # service name, not container name
+      ME_CONFIG_BASICAUTH: "false"
+    depends_on:
+      - mongoDB
+    networks:
+      - mongoDB-net
+
+networks:
+  mongoDB-net:
